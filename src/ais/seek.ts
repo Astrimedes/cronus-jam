@@ -6,18 +6,18 @@ type vector2 = {
   y: number;
 }
 
-export function seek(myPos: vector2, targetPos: vector2, senseRange: number, moveRate: number, device: Device) {
+export function seek(myPos: vector2, targetPos: vector2, senseRange: number, moveRate: number, boundaries: {width: number, height: number}, size: {width: number, height: number}, device: Device) {
   const move = {x: 0, y: 0};
 
   // check (manhattan) distance to player
   const distance = Math.abs(targetPos.x - myPos.x) + Math.abs(targetPos.y - myPos.y);
-  if (distance < (moveRate * 0.75)) {
+  if (distance < moveRate) {
     move.x = targetPos.x - myPos.x;
     move.y = targetPos.y - myPos.y;
     return move;
   }
 
-  if (distance < senseRange || distance > (senseRange * 10)) {
+  if (distance < senseRange) {
     move.x = Math.sign(targetPos.x - myPos.x);
     move.y = Math.sign(targetPos.y - myPos.y);
   } else {

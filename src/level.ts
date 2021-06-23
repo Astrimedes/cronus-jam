@@ -12,6 +12,11 @@ type Enemy = {
   action: {x: number, y: number, action: number}
 }
 
+const levelBounds = {
+  width: 1920,
+  height: 1080
+}
+
 type Friendly = {
 
 }
@@ -85,9 +90,12 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     });
 
     // camera movement
-    cameraMove.x = cameraX;
-    cameraMove.y = cameraY;
-    cameraMove = seek(cameraMove, {x: cronusX, y: cronusY}, Infinity, 3.8, device)
+    if (!cameraMove.x && !cameraMove.y) {
+      cameraMove.x = cameraX;
+      cameraMove.y = cameraY;
+      cameraMove = seek(cameraMove, {x: cronusX, y: cronusY}, Infinity, 3.8, levelBounds, {width: device.size.deviceWidth, height: device.size.deviceHeight}, device);
+    }
+
 
     // normalize diagonal movement
     normalizeDiagonal(cronusMove);
@@ -99,7 +107,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     if (!uranusMoving) {
       uranusMoving = true;
 
-      uranusMove = seek({x: uranusX, y: uranusY}, {x: cronusX, y: cronusY}, 600, 1.5, device);
+      uranusMove = seek({x: uranusX, y: uranusY}, {x: cronusX, y: cronusY}, 600, 1.5, levelBounds, {width: 40, height: 40}, device);
 
       // reset 'moving' flag after delay
       const delay = (device.random() * 1500) + 300;
@@ -129,15 +137,14 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     }
   },
 
-  render({ state, device }) {
+  render({ state }) {
     return [
-      t.rectangle({
-        width: device.size.deviceWidth,
-        height: device.size.deviceHeight,
-        color: 'tan',
-        x: 0,
-        y: 0
-      }),
+      t.image({
+        fileName: "11_bonus.png",
+        width: levelBounds.width,
+        height: levelBounds.height,
+        x: -state.cameraX,
+        y: -state.cameraY}),
       Titan({
         id: "uranus",
         name: "Uranus",
