@@ -1,6 +1,8 @@
 import { makeSprite, t, GameProps } from "@replay/core";
 import { WebInputs, RenderCanvasOptions } from "@replay/web";
 import { iOSInputs } from "@replay/swift";
+import { Level } from "./level";
+import { Command } from "./commands";
 
 export const options: RenderCanvasOptions = {
   dimensions: "scale-up",
@@ -28,10 +30,7 @@ export const gameProps: GameProps = {
 
 type GameState = {
   loaded: boolean;
-  posX: number;
-  posY: number;
-  targetX: number;
-  targetY: number;
+  commands: Command[];
 };
 
 export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
@@ -45,36 +44,43 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
 
     return {
       loaded: false,
-      posX: 0,
-      posY: 0,
-      targetX: 0,
-      targetY: 0,
+      commands: []
     };
   },
 
-  loop({ state, device, getInputs }) {
+  loop({ state, getInputs }) {
     if (!state.loaded) return state;
 
-    const { pointer } = getInputs();
-    const { posX, posY } = state;
-    let { targetX, targetY } = state;
-
-    if (pointer.justPressed) {
-      device.audio("boop.wav").play();
-      targetX = pointer.x;
-      targetY = pointer.y;
+    // interpret commands to pass to level
+    const nextCommands = [];
+    const { keysDown } = getInputs();
+    if (keysDown['ArrowUp']) {
+      nextCommands.push(Command.UP);
+    }
+    if (keysDown['ArrowRight']) {
+      nextCommands.push(Command.RIGHT);
+    }
+    if (keysDown['ArrowDown']) {
+      nextCommands.push(Command.DOWN);
+    }
+    if (keysDown['ArrowLeft']) {
+      nextCommands.push(Command.LEFT);
+    }
+    if (keysDown[' ']) {
+      nextCommands.push(Command.ACTIVATE);
+    }
+    if (keysDown['Shift']) {
+      nextCommands.push(Command.SHIFT)
     }
 
     return {
+      ...state,
       loaded: true,
-      posX: posX + (targetX - posX) / 10,
-      posY: posY + (targetY - posY) / 10,
-      targetX,
-      targetY,
+      commands: nextCommands
     };
   },
 
-  render({ state }) {
+  render({ state, extrapolateFactor }) {
     if (!state.loaded) {
       return [
         t.text({
@@ -84,19 +90,7 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
       ];
     }
     return [
-      t.text({
-        color: "red",
-        text: "Hello Replay! To get started, edit src/index.ts",
-        y: 50,
-      }),
-      t.image({
-        testId: "icon",
-        x: state.posX,
-        y: state.posY,
-        fileName: "icon.png",
-        width: 50,
-        height: 50,
-      }),
+      Level({id: "level1", commands: state.commands, exFactor: extrapolateFactor}),
     ];
   },
 });
