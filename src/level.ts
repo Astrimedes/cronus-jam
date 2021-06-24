@@ -1,7 +1,7 @@
 import { makeSprite, t } from "@replay/core";
 import { iOSInputs } from "@replay/swift";
 import { WebInputs } from "@replay/web";
-import { seek } from "./ais/seek";
+import { keepInBounds, seek } from "./ais/seek";
 import { Command, getDirection } from "./commands";
 import { normalizeDiagonal } from "./mathUtil";
 import { Titan } from "./titan";
@@ -12,9 +12,16 @@ type Enemy = {
   action: {x: number, y: number, action: number}
 }
 
-const levelBounds = {
+const levelSize = {
   width: 1920,
   height: 1080
+}
+
+const levelRectangle = {
+  top: Math.round(levelSize.height / 2),
+  right: Math.round(levelSize.width / 2),
+  bottom: -Math.round(levelSize.height / 2),
+  left: -Math.round(levelSize.width / 2),
 }
 
 type Friendly = {
@@ -90,10 +97,20 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     });
 
     // camera movement
+    const cameraSize = {width: device.size.width + device.size.widthMargin, height: device.size.height + device.size.heightMargin};
     if (!cameraMove.x && !cameraMove.y) {
-      cameraMove.x = cameraX;
-      cameraMove.y = cameraY;
-      cameraMove = seek(cameraMove, {x: cronusX, y: cronusY}, Infinity, 3.8, levelBounds, {width: device.size.deviceWidth, height: device.size.deviceHeight}, device);
+      cameraMove = seek({x: cameraX, y: cameraY}, {x: cronusX, y: cronusY}, Infinity, 4, levelRectangle, cameraSize, device);
+      if (cameraMove.x || cameraMove.y) {
+        // keep everything in bounds
+        let point = {x: cameraX + cameraMove.x, y: cameraY + cameraMove.y};
+        point = keepInBounds(point, cameraSize, levelRectangle);
+        // adjust movement
+        cameraMove.x += point.x - cameraX;
+        cameraMove.y += point.y - cameraY;
+        // always dampen camera movement based on distance
+        cameraMove.x *= 0.5;
+        cameraMove.y *= 0.5;
+      }
     }
 
 
@@ -107,7 +124,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     if (!uranusMoving) {
       uranusMoving = true;
 
-      uranusMove = seek({x: uranusX, y: uranusY}, {x: cronusX, y: cronusY}, 600, 1.5, levelBounds, {width: 40, height: 40}, device);
+      uranusMove = seek({x: uranusX, y: uranusY}, {x: cronusX, y: cronusY}, 600, 1.5, levelRectangle, {width: 40, height: 40}, device);
 
       // reset 'moving' flag after delay
       const delay = (device.random() * 1500) + 300;
@@ -141,10 +158,10 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     return [
       t.image({
         fileName: "11_bonus.png",
-        width: levelBounds.width,
-        height: levelBounds.height,
-        x: -state.cameraX,
-        y: -state.cameraY}),
+        width: levelSize.width,
+        height: levelSize.height,
+        x: 0-state.cameraX,
+        y: 0-state.cameraY}),
       Titan({
         id: "uranus",
         name: "Uranus",
@@ -167,7 +184,7 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         size: 20,
         weapon: null
       }),
-
+      t.text({text: `Camera: (${Math.round(state.cameraX)}, ${Math.round(state.cameraY)})`, color: 'yellow'})
     ]
   }
 });

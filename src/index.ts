@@ -33,6 +33,7 @@ type GameState = {
   commands: Command[];
 };
 
+
 export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
   init({ updateState, preloadFiles }) {
     preloadFiles({
@@ -90,7 +91,7 @@ export const Game = makeSprite<GameProps, GameState, WebInputs | iOSInputs>({
       ];
     }
     return [
-      Level({id: "level1", commands: state.commands, exFactor: extrapolateFactor}),
+      Level({id: "level1",  commands: state.commands, exFactor: extrapolateFactor}),
     ];
   },
 });

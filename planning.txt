@@ -1,0 +1,36 @@
+Overview:
+Level 1:
+1. Gaia speaks: says to get sickle weapon
+2. Cronus is surrounded by siblings
+2. Cronus steps forward, collects sickle from Gaia
+3. slays Uranus. end scene.
+
+Level 2:
+1. speak with Rhea
+2. swallow babies - become larger & slower with each baby
+3. swallow rock (Zeus?) - become very slow. end scene.
+
+Level 3:
+1. Zeus arrives
+2. Disgorge grown god children
+3. Get slain by gods. end scene.
+
+
+Technical:
+1. dialog boxes
+2. weapon that swings
+3. hits and damage to titans
+4. change scenes/levels
+5. eat babies
+6. grow larger and slower when eating
+7. disgorge children
+8. group of enemies combat
+
+Level state:
+1. general event flag storage by key - for things like 'collected sickle', 'ate 5 babies', etc
+2. 'showing dialog' flag/state
+
+Titan state:
+1. swinging weapon - timed animation state, calculate angle of weapon during swing state based on swing startTime, use timer to switch it off again if animation name & startTime matches
+2. animation name
+3. animation startTime
