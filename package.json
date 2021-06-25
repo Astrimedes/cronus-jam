@@ -21,7 +21,8 @@
   "dependencies": {
     "@replay/core": "0.9.0",
     "@replay/swift": "0.9.0",
-    "@replay/web": "0.9.0"
+    "@replay/web": "0.9.0",
+    "math2d": "^4.0.1"
   },
   "devDependencies": {
     "@replay/test": "0.9.0",

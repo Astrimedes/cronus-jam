@@ -1,5 +1,6 @@
 import { Device } from "@replay/core";
-import { normalizeDiagonal } from "../mathUtil";
+import { vecDistance, vecNormalize } from "math2d";
+// import { normalizeDiagonal } from "../mathUtil";
 
 type vector2 = {
   x: number;
@@ -18,14 +19,12 @@ type levelRect = {
   left: number;
 }
 
-export function seek(myPos: vector2, targetPos: vector2, senseRange: number, moveRate: number, boundaries: levelRect, size: objSize, device: Device) {
-  const move = {x: 0, y: 0};
-
-  const min = 1;
+export function seek(myPos: vector2, targetPos: vector2, senseRange: number, minDistance: number, moveRate: number, size: objSize, device: Device) {
+  let move = {x: 0, y: 0};
 
   // check (manhattan) distance to player
-  const distance = Math.abs(targetPos.x - myPos.x) + Math.abs(targetPos.y - myPos.y);
-  if (distance < 2) return move;
+  const distance = vecDistance(myPos, targetPos);
+  if (distance < minDistance) return move;
   if (distance < moveRate) {
     move.x = targetPos.x - myPos.x;
     move.y = targetPos.y - myPos.y;
@@ -36,11 +35,13 @@ export function seek(myPos: vector2, targetPos: vector2, senseRange: number, mov
     const diffX = targetPos.x - myPos.x;
     const diffY = targetPos.y - myPos.y;
 
+    const min = 1;
+
     move.x = Math.abs(diffX) > min ? Math.sign(diffX) : 0;
     move.y =  Math.abs(diffY) > min ? Math.sign(diffY) : 0;
     if (move.x != 0 && move.y != 0) {
-       move.x = Math.abs(diffY) > (Math.abs(diffX) * 4) ? 0 : move.x;
-       move.y = Math.abs(diffX) > (Math.abs(diffY) * 4) ? 0 : move.y;
+       move.x = Math.abs(diffY) > (Math.abs(diffX) * 10) ? 0 : move.x;
+       move.y = Math.abs(diffX) > (Math.abs(diffY) * 10) ? 0 : move.y;
     }
   } else {
     // move randomly
@@ -55,9 +56,12 @@ export function seek(myPos: vector2, targetPos: vector2, senseRange: number, mov
     }
   }
 
-  normalizeDiagonal(move);
-  move.x *= moveRate;
-  move.y *= moveRate;
+  // normalizeDiagonal(move);
+  if (move.x || move.y) {
+    move = vecNormalize(move);
+    move.x *= moveRate;
+    move.y *= moveRate;
+  }
 
   return move;
 }
