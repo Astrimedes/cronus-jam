@@ -40,8 +40,8 @@ export function seek(myPos: vector2, targetPos: vector2, senseRange: number, min
     move.x = Math.abs(diffX) > min ? Math.sign(diffX) : 0;
     move.y =  Math.abs(diffY) > min ? Math.sign(diffY) : 0;
     if (move.x != 0 && move.y != 0) {
-       move.x = Math.abs(diffY) > (Math.abs(diffX) * 10) ? 0 : move.x;
-       move.y = Math.abs(diffX) > (Math.abs(diffY) * 10) ? 0 : move.y;
+       move.x = Math.abs(diffY) > (Math.abs(diffX) * 4) ? 0 : move.x;
+       move.y = Math.abs(diffX) > (Math.abs(diffY) * 4) ? 0 : move.y;
     }
   } else {
     // move randomly
@@ -77,14 +77,14 @@ export function keepInBounds(myPos: vector2, size: objSize, boundaries: levelRec
 
   // keep in bounds
   if (myPos.x + hw > boundaries.right) {
-    myPos.x -= (myPos.x + hw) - boundaries.right - 1;
+    myPos.x = boundaries.right - hw - 1;
   } else if (myPos.x - hw < boundaries.left) {
-    myPos.x -= (myPos.x - hw) - boundaries.left - 1;
+    myPos.x = boundaries.left + hw + 1;
   }
   if (myPos.y + hh > boundaries.top) {
-    myPos.y -= (myPos.y + hh) - boundaries.top - 1;
+    myPos.y = boundaries.top - hh - 1;
   } else if (myPos.y - hh < boundaries.bottom) {
-    myPos.y -= (myPos.y - hh) - boundaries.bottom - 1;
+    myPos.y = boundaries.bottom + hh + 1;
   }
 
   return myPos;

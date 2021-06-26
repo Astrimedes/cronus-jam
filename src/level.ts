@@ -1,11 +1,11 @@
 /* eslint-disable prefer-const */
-import { makeSprite, Sprite, t } from "@replay/core";
+import { makeSprite, t } from "@replay/core";
 import { iOSInputs } from "@replay/swift";
 import { WebInputs } from "@replay/web";
 import { vecDistance, vecNormalize, vecScale } from "math2d";
 import { keepInBounds, seek } from "./ais/seek";
 import { Command, getDirection } from "./commands";
-import { normalizeDiagonal } from "./mathUtil";
+import { Dialog, DialogCustomProps } from "./dialog";
 import { Titan, TitanCustomProps } from "./titan";
 
 type BackgroundProps = {
@@ -37,12 +37,16 @@ export type LevelState = {
   timers: Record<string, string>;
   cronusX: number;
   cronusY: number;
+  cronusTryAttack: boolean;
+  cronusTryInteract: boolean;
+  cronusMove: {x: number, y: number};
   cameraX: number;
   cameraY: number;
   enemies: ActorEntry[];
   friendlies: ActorEntry[];
   background: BackgroundProps[];
   locations: Location[];
+  dialog: DialogCustomProps & {dismissable: boolean} | null;
 };
 
 const playerSpeed = 2.5;
@@ -68,14 +72,33 @@ const levelBackground = {
   y: 0
 }
 
+type updateLevelState = (update: (state: LevelState) => LevelState) => void;
+
+const dismissDialog = (updateState: updateLevelState) => {
+  updateState(state => {
+    return {
+      ...state,
+      dialog: state.dialog ? {
+        ...state.dialog,
+        dismissable: true
+      } : null
+    }
+  });
+}
+
+// type UpdateStateFn = (state: LevelState) => LevelState
+
 export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
-  init() {
+  init({updateState}) {
     return {
       timers: {},
       cronusX: 0,
       cronusY: 0,
+      cronusTryAttack: false,
+      cronusTryInteract: false,
       cameraX: 0,
       cameraY: 0,
+      cronusMove: {x: 0, y: 0},
       enemies: [{
         name: "uranus",
         renderProps: {
@@ -87,33 +110,57 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
           cameraY: 0,
           color: 'red',
           size: 60,
-          weapon: null,
-          },
-          direction: {x: 0, y: 0},
-          acting: false,
-          size: {width: 60, height: 60},
-          speed: playerSpeed / 2,
-          dialogs: ["hello, son"],
-          dialogIndex: 0
+          weapon: undefined,
+          paused: false,
+          tryAttack: false,
+          tryMove: {x: 0, y: 0}
+        },
+        direction: {x: 0, y: 0},
+        acting: false,
+        size: {width: 60, height: 60},
+        speed: playerSpeed / 2,
+        dialogs: ["hello, son"],
+        dialogIndex: 0,
       }],
       friendlies: [],
       locations: [],
-      background: [levelBackground]
+      background: [levelBackground],
+      dialog: {
+        text: "testing!!",
+        dismissDialog: () => {
+          dismissDialog(updateState)
+        },
+        dismissable: false
+      }
     }
   },
 
   loop({props, state, device, updateState}) {
-
     // state
-    let { cameraX, cameraY, cronusX, cronusY, enemies, timers } = state;
+    let { cameraX, cameraY, cronusX, cronusY, enemies, timers, dialog, cronusMove } = state;
+    let cronusTryAttack = false;
     const commands = props.commands;
+
+    // check for dialog - block movement
+    const paused = !!dialog;
 
     // process commands
     const hasShift = commands.indexOf(Command.SHIFT) > -1;
     let cameraMove = { x: 0, y: 0 };
-    let cronusMove = { x: 0, y: 0 };
     let cronusMoved = false;
+    cronusMove.x = 0;
+    cronusMove.y = 0;
+
+    // check for user dismissing dialog
+    if (dialog?.dismissable && commands.indexOf(Command.ACTIVATE) != -1) {
+      dialog = null;
+      commands.splice(commands.indexOf(Command.ACTIVATE), 1); // remove this command
+    }
+
     commands.forEach(c => {
+      if (c == Command.ACTIVATE) {
+        cronusTryAttack = true;
+      }
       const dir = getDirection(c);
       if (!dir) return;
       if (hasShift) {
@@ -123,9 +170,15 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         cronusMove.x += dir.x * playerSpeed;
         cronusMove.y += dir.y * playerSpeed;
       }
-      normalizeDiagonal(cameraMove);
+      cameraMove = vecNormalize(cameraMove);
       cronusMoved = true;
     })
+
+    if (paused) {
+      cronusMoved = false;
+      // cronusMove.x = 0;
+      // cronusMove.y = 0;
+    }
 
     if (cronusMoved) {
       // apply cronus movement
@@ -147,9 +200,9 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
 
     // camera movement
     let target = {x: cronusX, y: cronusY};
-    const cameraSize = {width: device.size.width + (device.size.widthMargin * 2), height: device.size.height + (device.size.heightMargin * 2)};
+    const cameraSize = {width: device.size.width + (device.size.widthMargin), height: device.size.height + (device.size.heightMargin)};
     if (!cameraMove.x && !cameraMove.y) {
-      cameraMove = seek({x: cameraX, y: cameraY}, target, Infinity, playerSize.width, playerSpeed * 4, cameraSize, device);
+      cameraMove = seek({x: cameraX, y: cameraY}, target, Infinity, 0, playerSpeed * 4, cameraSize, device);
       if (cameraMove.x || cameraMove.y) {
         // keep everything in bounds
         let point = {x: cameraX + cameraMove.x, y: cameraY + cameraMove.y};
@@ -159,9 +212,9 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         cameraMove.y += point.y - cameraY;
         // find distance to player
         let distance = vecDistance(point, target);
-        let maxRange = 600;
+        let maxRange = 1000;
         // always dampen camera movement - based on distance
-        cameraMove = vecScale(cameraMove, Math.min(1, Math.max(0, distance / maxRange)));
+        cameraMove = vecScale(cameraMove, Math.min(0.99, Math.max(0.01, distance / maxRange)));
       }
     }
     // apply to position
@@ -169,7 +222,8 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
     cameraY += cameraMove.y;
 
     // move enemies
-    enemies.forEach(ee => {
+    if (!paused) {
+      enemies.forEach(ee => {
       let pos = { x: ee.renderProps.mapX, y: ee.renderProps.mapY };
 
       if (!ee.acting) {
@@ -202,46 +256,42 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         pos.x += ee.direction.x;
         pos.y += ee.direction.y;
         pos = keepInBounds(pos, ee.size, levelRectangle);
-
         ee.renderProps.mapX = pos.x;
         ee.renderProps.mapY = pos.y;
       }
-    });
+      });
+    }
 
     // new state
     return {
       ...state,
+      dialog,
       enemies,
       timers,
       cameraX,
       cameraY,
       cronusX,
-      cronusY
+      cronusY,
+      cronusTryAttack,
+      cronusMove
     }
   },
 
-  render({ state }) {
-    const sprites: Array<Sprite> = [t.image({
+  render({ state, updateState }) {
+    let paused = !!state.dialog;
+    return [
+      t.image({
         fileName: levelBackground.fileName,
         width: levelSize.width,
         height: levelSize.height,
         x: levelBackground.x-state.cameraX,
-        y: levelBackground.y-state.cameraY})
-    ];
+        y: levelBackground.y-state.cameraY}),
 
-    state.friendlies.forEach(entry => sprites.push(
-      Titan({...entry.renderProps,
-      cameraX: state.cameraX,
-      cameraY: state.cameraY})
-    ));
+      ...state.friendlies.map(entry => Titan({...entry.renderProps, cameraX: state.cameraX, cameraY: state.cameraY})),
 
-    state.enemies.forEach(entry => sprites.push(
-      Titan({...entry.renderProps,
-      cameraX: state.cameraX,
-      cameraY: state.cameraY})
-    ));
+      ...state.enemies.map(entry => Titan({...entry.renderProps, cameraX: state.cameraX, cameraY: state.cameraY})),
 
-      sprites.push(Titan({
+      Titan({
         id: 'Cronus',
         name: 'Cronus',
         mapX: state.cronusX,
@@ -250,10 +300,16 @@ export const Level = makeSprite<LevelProps, LevelState, WebInputs | iOSInputs>({
         cameraY: state.cameraY,
         color: 'blue',
         size: playerSize.width,
-        weapon: null
-      }));
+        weapon: 'sickle',
+        paused,
+        tryAttack: state.cronusTryAttack,
+        tryMove: state.cronusMove
+      }),
 
-
-    return sprites;
+      state.dialog ? Dialog({
+        ...state.dialog,
+        id: 'dialog',
+        dismissDialog: () => dismissDialog(updateState)}) : null
+    ]
   }
 });

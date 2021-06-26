@@ -17,8 +17,8 @@ Level 3:
 
 
 Technical:
-1. dialog boxes
-2. weapon that swings
+1. dialog boxes x
+2. weapon that swings x
 3. hits and damage to titans
 4. change scenes/levels
 5. eat babies
